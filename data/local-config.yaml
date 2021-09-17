@@ -7,4 +7,7 @@ destination:
 cache:
   ttl: 60
   enable: true
+  allowedMethods: 
+    - GET
+    - HEAD
   
