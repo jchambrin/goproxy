@@ -3,14 +3,17 @@ package proxy
 import (
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/jchambrin/goproxy/pkg/config"
 )
 
+var (
+	errorData = &CacheData{statusCode: http.StatusInternalServerError}
+)
+
 type CacheStorage interface {
-	Get(key KeyCache) *CacheData
+	Get(key KeyCache) (*CacheData, bool)
 	Put(key KeyCache, data *CacheData)
 }
 
@@ -19,11 +22,13 @@ type KeyCache struct {
 }
 
 type CacheData struct {
-	header http.Header
-	body   []byte
+	statusCode int
+	header     http.Header
+	body       []byte
 }
 
 type Proxy struct {
+	cache               CacheStorage
 	protocol            string
 	host                string
 	port                int
@@ -31,8 +36,9 @@ type Proxy struct {
 	cacheAllowedMethods []string
 }
 
-func New(config config.Proxy) *Proxy {
+func New(config config.Proxy, cache CacheStorage) *Proxy {
 	return &Proxy{
+		cache:               cache,
 		protocol:            config.Destination.Protocol,
 		host:                config.Destination.Host,
 		port:                config.Destination.Port,
@@ -41,9 +47,20 @@ func New(config config.Proxy) *Proxy {
 	}
 }
 
-func (p *Proxy) Start(w http.ResponseWriter, r *http.Request) {
+// Handle reverse proxy
+func (p *Proxy) Handle(w http.ResponseWriter, r *http.Request) {
 	if p.cacheEnabled && containsString(r.Method, p.cacheAllowedMethods) {
-		// TODO search into cache
+		key := KeyCache{r.RequestURI}
+		if resp, ok := p.cache.Get(key); ok {
+			writeResponse(w, resp)
+			return
+		}
+		data := p.httpProxy(r)
+		if data.statusCode >= 200 && data.statusCode <= 299 {
+			p.cache.Put(key, data)
+		}
+		writeResponse(w, data)
+		return
 	} else {
 		data := p.httpProxy(r)
 		writeResponse(w, data)
@@ -59,22 +76,28 @@ func (p *Proxy) httpProxy(r *http.Request) *CacheData {
 	req.URL.Host = fmt.Sprintf("%s:%d", p.host, p.port)
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println(err) // TODO
+		return errorData
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Println(err) // TODO
+		return errorData
 	}
 	return &CacheData{
-		header: resp.Header,
-		body:   body,
+		statusCode: resp.StatusCode,
+		header:     resp.Header,
+		body:       body,
 	}
 }
 
 func writeResponse(w http.ResponseWriter, data *CacheData) {
+	if data == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	copyHeaders(data.header, w)
+	w.WriteHeader(data.statusCode)
 	w.Write(data.body)
 }
 

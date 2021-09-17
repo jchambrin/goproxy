@@ -17,6 +17,7 @@ type DestinationConfig struct {
 
 type CacheConfig struct {
 	Enable         bool
+	TTL            int      `yaml:"ttl"`
 	AllowedMethods []string `yaml:"allowedMethods"`
 }
 
@@ -29,5 +30,10 @@ func Init(path string) Proxy {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	if len(res.Cache.AllowedMethods) == 0 {
+		res.Cache.AllowedMethods = defaultAllowedMethods
+	}
+
 	return res
 }

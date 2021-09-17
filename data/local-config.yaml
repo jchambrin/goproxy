@@ -5,8 +5,6 @@ destination:
   host: localhost
   port: 80
 cache:
-  enable: false
-  allowedMethods: 
-    - GET
-    - HEAD
+  ttl: 60
+  enable: true
   

@@ -1,24 +1,27 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
-	"os"
+	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/jchambrin/goproxy/pkg/cache"
 	"github.com/jchambrin/goproxy/pkg/config"
 	"github.com/jchambrin/goproxy/pkg/proxy"
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	godotenv.Load()
+	configLocation := flag.String("config", ".", "configuration file")
+	flag.Parse()
 
-	proxyConf := config.Init(os.Getenv("CONFIGFILE_LOCATION"))
-	p := proxy.New(proxyConf)
+	proxyConf := config.Init(*configLocation)
+	memoryCache := cache.NewMemoryCache(time.Duration(proxyConf.Cache.TTL))
+	p := proxy.New(proxyConf, memoryCache)
+
 	r := mux.NewRouter()
-
-	r.PathPrefix("/").HandlerFunc(p.Start)
+	r.PathPrefix("/").HandlerFunc(p.Handle)
 	http.Handle("/", r)
 	if err := http.ListenAndServe(proxyConf.Source, r); err != nil {
 		log.Fatal(err)

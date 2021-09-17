@@ -1,0 +1,13 @@
+name: reverse1
+source: localhost:3000
+destination:
+  protocol: https
+  host: github.com
+  port: 443
+cache:
+  ttl: 60
+  enable: true
+  allowedMethods: 
+    - GET
+    - HEAD
+  
