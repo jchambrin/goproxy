@@ -8,15 +8,39 @@ import (
 )
 
 type memory struct {
-	mu sync.RWMutex
-	m  map[proxy.KeyCache]*proxy.CacheData
+	mu   sync.RWMutex
+	m    map[proxy.KeyCache]*proxy.CacheData
+	heap []heapEntry
 }
 
-// TODO: TTL handling
+type heapEntry struct {
+	key      proxy.KeyCache
+	creation int64
+}
+
 func NewMemoryCache(TTL time.Duration) *memory {
-	return &memory{
-		m: make(map[proxy.KeyCache]*proxy.CacheData),
+	res := &memory{
+		m:    make(map[proxy.KeyCache]*proxy.CacheData),
+		heap: make([]heapEntry, 0),
 	}
+
+	go func(TTL time.Duration) {
+		ttlUnix := int64(TTL.Seconds())
+		for now := range time.Tick(1 * time.Second) {
+			res.mu.Lock()
+			for _, v := range res.heap {
+				if now.Unix()-v.creation > ttlUnix {
+					delete(res.m, v.key)
+					res.heap = res.heap[1:]
+				} else {
+					break
+				}
+			}
+			res.mu.Unlock()
+		}
+	}(TTL)
+
+	return res
 }
 
 func (m *memory) Get(key proxy.KeyCache) (*proxy.CacheData, bool) {
@@ -30,4 +54,5 @@ func (m *memory) Put(key proxy.KeyCache, data *proxy.CacheData) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.m[key] = data
+	m.heap = append(m.heap, heapEntry{key, time.Now().Unix()})
 }

@@ -17,7 +17,7 @@ type DestinationConfig struct {
 
 type CacheConfig struct {
 	Enable         bool
-	TTL            int      `yaml:"ttl"`
+	TTL            string   `yaml:"ttl"`
 	AllowedMethods []string `yaml:"allowedMethods"`
 }
 

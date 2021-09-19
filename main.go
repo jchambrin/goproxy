@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -17,7 +18,12 @@ func main() {
 	flag.Parse()
 
 	proxyConf := config.Init(*configLocation)
-	memoryCache := cache.NewMemoryCache(time.Duration(proxyConf.Cache.TTL))
+	TTL, err := time.ParseDuration(proxyConf.Cache.TTL)
+	if err != nil {
+		fmt.Println(err)
+		TTL = 60 * time.Second
+	}
+	memoryCache := cache.NewMemoryCache(TTL)
 	p := proxy.New(proxy.Params{
 		Protocol:            proxyConf.Destination.Protocol,
 		Host:                proxyConf.Destination.Host,

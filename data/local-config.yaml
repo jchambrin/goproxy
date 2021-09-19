@@ -5,7 +5,7 @@ destination:
   host: localhost
   port: 80
 cache:
-  ttl: 60
+  ttl: 60s
   enable: true
   allowedMethods: 
     - GET

@@ -13,7 +13,7 @@ destination:
   host: github.com
   port: 443
 cache:
-  ttl: 60
+  ttl: 60s
   enable: true
   allowedMethods: 
     - GET
