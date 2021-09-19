@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-
-	"github.com/jchambrin/goproxy/pkg/config"
 )
 
 var (
@@ -18,7 +16,8 @@ type CacheStorage interface {
 }
 
 type KeyCache struct {
-	URI string
+	URI    string
+	Method string
 }
 
 type CacheData struct {
@@ -27,30 +26,41 @@ type CacheData struct {
 	body       []byte
 }
 
+type Params struct {
+	Protocol            string
+	Host                string
+	Port                int
+	CacheEnabled        bool
+	CacheAllowedMethods []string
+}
+
 type Proxy struct {
-	cache               CacheStorage
 	protocol            string
 	host                string
 	port                int
 	cacheEnabled        bool
 	cacheAllowedMethods []string
+
+	cli   *http.Client
+	cache CacheStorage
 }
 
-func New(config config.Proxy, cache CacheStorage) *Proxy {
+func New(params Params, cache CacheStorage) *Proxy {
 	return &Proxy{
+		protocol:            params.Protocol,
+		host:                params.Host,
+		port:                params.Port,
+		cacheEnabled:        params.CacheEnabled,
+		cacheAllowedMethods: params.CacheAllowedMethods,
 		cache:               cache,
-		protocol:            config.Destination.Protocol,
-		host:                config.Destination.Host,
-		port:                config.Destination.Port,
-		cacheEnabled:        config.Cache.Enable,
-		cacheAllowedMethods: config.Cache.AllowedMethods,
+		cli:                 http.DefaultClient,
 	}
 }
 
 // Handle reverse proxy
 func (p *Proxy) Handle(w http.ResponseWriter, r *http.Request) {
 	if p.cacheEnabled && containsString(r.Method, p.cacheAllowedMethods) {
-		key := KeyCache{r.RequestURI}
+		key := KeyCache{r.RequestURI, r.Method}
 		if resp, ok := p.cache.Get(key); ok {
 			writeResponse(w, resp)
 			return
@@ -69,12 +79,12 @@ func (p *Proxy) Handle(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Proxy) httpProxy(r *http.Request) *CacheData {
-	client := &http.Client{}
 	req := r.Clone(r.Context())
 	req.RequestURI = ""
 	req.URL.Scheme = p.protocol
 	req.URL.Host = fmt.Sprintf("%s:%d", p.host, p.port)
-	resp, err := client.Do(req)
+	req.Host = p.host
+	resp, err := p.cli.Do(req)
 	if err != nil {
 		return errorData
 	}

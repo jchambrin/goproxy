@@ -12,6 +12,7 @@ type memory struct {
 	m  map[proxy.KeyCache]*proxy.CacheData
 }
 
+// TODO: TTL handling
 func NewMemoryCache(TTL time.Duration) *memory {
 	return &memory{
 		m: make(map[proxy.KeyCache]*proxy.CacheData),

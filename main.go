@@ -18,7 +18,13 @@ func main() {
 
 	proxyConf := config.Init(*configLocation)
 	memoryCache := cache.NewMemoryCache(time.Duration(proxyConf.Cache.TTL))
-	p := proxy.New(proxyConf, memoryCache)
+	p := proxy.New(proxy.Params{
+		Protocol:            proxyConf.Destination.Protocol,
+		Host:                proxyConf.Destination.Host,
+		Port:                proxyConf.Destination.Port,
+		CacheEnabled:        proxyConf.Cache.Enable,
+		CacheAllowedMethods: proxyConf.Cache.AllowedMethods,
+	}, memoryCache)
 
 	r := mux.NewRouter()
 	r.PathPrefix("/").HandlerFunc(p.Handle)

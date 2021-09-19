@@ -1,0 +1,10 @@
+name: reverse1
+source: localhost:3000
+destination:
+  protocol: http
+  host: localhost
+  port: 80
+cache:
+  ttl: 60
+  enable: true
+  

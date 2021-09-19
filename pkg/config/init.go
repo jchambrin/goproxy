@@ -22,17 +22,18 @@ type CacheConfig struct {
 }
 
 var (
-	defaultAllowedMethods = []string{"GET", "HEAD"}
+	defaultConfig = Proxy{
+		Cache: CacheConfig{
+			Enable:         false,
+			AllowedMethods: []string{"GET", "HEAD"},
+		},
+	}
 )
 
 func Init(path string) Proxy {
-	res, err := loadFromYaml(path)
-	if err != nil {
+	res := defaultConfig
+	if err := loadFromYaml(&res, path); err != nil {
 		log.Fatal(err)
-	}
-
-	if len(res.Cache.AllowedMethods) == 0 {
-		res.Cache.AllowedMethods = defaultAllowedMethods
 	}
 
 	return res
